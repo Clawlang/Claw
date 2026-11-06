@@ -1,0 +1,136 @@
+# std module for string handling.
+# most functions that ask for strings should use u8[], 
+# since String conforms to it.
+
+# alias type of u8[], stores an allocator to make
+# changes seamlessly
+type String = alias u8[] {
+  allocator: std.mem.Allocator,
+
+  # Initializes a string instance.
+  # Must be passed an allocator and starting value.
+  # @Throws `std.error.OutOfMemory` error.
+  fn init(value: u8[], allocator: std.mem.Allocator) String {
+    var ret = String{ .allocator = allocator, .len = value.len };
+    var copy = try allocator.alloc(u8, value.len);
+    errdefer allocator.free(copy);
+
+    copy[0..] = value[0..];
+
+    ret.ptr = copy.ptr;
+    return ret;
+  }
+
+  # Frees a string instance.
+  fn |self| deinit() void {
+    self.allocator.free(self.ptr);
+  }
+
+  # Checks if two strings equal each other in value
+  fn |self| equals(str: u8[]) bool {
+    if(self.len != str.len) return false;
+    for(self, 0..) |ch, i| {
+      if(ch != str[i]) return false;
+    }
+    return true;
+  }
+
+  # Concatinates two strings together.
+  # @Throws `std.error.OutOfMemory` error.
+  fn |self| concat(str: u8[]) void {
+    var ret = try self.allocator.alloc(u8, self.len + str.len);
+    errdefer allocator.free(ret);
+
+    ret[0..self.len - 1] = self[0..];
+    ret[self.len..] = str[0..];
+
+    allocator.free(self.ptr);
+    self.ptr = ret.ptr;
+  }
+
+  # Duplicates a string into a new struct with
+  # a seperate backing character struct.
+  # @Throws `std.error.OutOfMemory` error.
+  fn |self| dupe() String {
+    return try String.init(self, self.allocator);
+  }
+
+  # Returns a substring from the given `start`
+  # and `end` indices. Allocates the new String
+  # to the heap.
+  # character at index `end` is not included in the returned string.
+  # @Throws `std.error.OutOfMemory` error.
+  fn |self| substring(start: usize, end: usize) String {
+    return try String.init(self[start..end - 1], self.allocator);
+  }
+
+  # Updates all characters in the string to
+  # be lower case.
+  fn |self| toLower() void {
+    for(self, 0..) |ch, i| {
+      if(ch <= 'Z' and ch >= 'A') {
+        self[i] = ch + ('a' - 'A');
+      }
+    }
+  }
+
+  # Updates all characters in the string to
+  # be upper case.
+  fn |self| toUpper() void {
+    for(self, 0..) |ch, i| {
+      if(ch <= 'z' and ch >= 'a') {
+        self[i] = ch - ('a' - 'A');
+      }
+    }
+  }
+  
+  # Checks if the string contains `substring`.
+  fn |self| contains(substring: u8[]) bool {
+    if (substring.len == 0) return true;
+    if (self.len < substring.len) return false;
+
+    var i: usize = 0;
+    while (i <= self.len - substring.len) {
+      var j: usize = 0;
+      while (j < substring.len and self[i + j] == substring[j]) {
+        j += 1;
+      }
+      if (j == substring.len) {
+        return true;
+      }
+      i += 1;
+    }
+
+    return false;
+  }
+
+  # Checks if the string contains `ch`.
+  fn |self| containsChar(ch: u8) bool {
+    for(self) |cur| {
+      if(cur == ch) return true;
+    }
+    return false;
+  }
+
+  # Returns the first index of `ch`.
+  # Or null if it does not exist within the string.
+  fn |self| indexOf(ch: u8) usize? {
+    for(self, 0..) |cur, i| {
+      if(cur == ch) return i;
+    }
+    return null;
+  }
+
+  # Returns the last index of `ch`.
+  # Or null if it does not exist within the string.
+  fn |self| lastIndexOf(ch: u8) usize? {
+    if (self.len == 0) return null;
+    
+    var i: usize = self.len;
+    while (i > 0) {
+      i -= 1;
+      if (self[i] == ch) return i;
+    }
+    return null;
+  }
+};
