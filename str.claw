@@ -8,9 +8,10 @@ type String = alias u8[] {
   allocator: std.mem.Allocator,
 
   # Initializes a string instance.
-  # Must be passed an allocator and starting value.
+  # Must be passed a starting value.
+  # Can optionally be passed an allocator type.
   # @Throws `std.error.OutOfMemory` error.
-  fn init(value: u8[], allocator: std.mem.Allocator) String {
+  fn init(value: u8[], allocator = std.allocators.DebugAllocator) String {
     var ret = String{ .allocator = allocator, .len = value.len };
     var copy = try allocator.alloc(u8, value.len);
     errdefer allocator.free(copy);
