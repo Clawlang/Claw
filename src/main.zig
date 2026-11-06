@@ -9,7 +9,7 @@ pub fn main(init: std.process.Init) !u8 {
         \\-h, --help                Display help and exit.
         \\-o, --output <FILE>       Specify output binary path.
         \\--print-ast               Dump the abstract syntax tree to stdout.
-        \\<FILE>                    The input .clon project file.
+        \\<FILE>                    The input .clon build file.
         \\
     );
 
@@ -51,6 +51,19 @@ pub fn main(init: std.process.Init) !u8 {
         return 0;
     }
 
-    std.debug.print("Hello World!\n", .{});
+    const srcPath = res.positionals[0] orelse {
+        std.debug.print("Error: no build file provided.\n", .{});
+        return 1;
+    };
+
+    _ = std.Io.Dir.cwd().openFile(io, srcPath, .{}) catch |err| switch(err) {
+        std.Io.File.OpenError.FileNotFound => {
+            std.debug.print("Error: provided build file does not exist.\n", .{});
+            return 1;
+        },
+        else => return err,
+    };
+
+    std.debug.print("Compilation Complete!\n", .{});
     return 0;
 }
