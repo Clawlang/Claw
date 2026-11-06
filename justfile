@@ -5,3 +5,6 @@ build optimize="Debug":
 
 test params='': build
   ./zig-out/bin/claw.exe {{params}}
+
+update-std:
+  git subtree pull --prefix="std/" std main --squash
