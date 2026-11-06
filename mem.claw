@@ -1,0 +1,70 @@
+# std module for handling heap memory.
+
+# Interface for allocating memory to the heap
+type Allocator = struct {
+  # Allocates a slice of type `T` with len `count`.
+  # @Throws `std.err.OutOfMemory` error.
+  fn |self| alloc(T: type, count: usize) T[]*;
+  # Frees a slice of heap allocated data.
+  fn |self| free(data: any[]*) void;
+
+  # Allocates an instance of the `T` type.
+  # @Throws `std.err.OutOfMemory` error.
+  fn |self| create(T: type) T*;
+  # Frees an instance of any type.
+  fn |self| destroy(data: any*) void;
+};
+
+# Interface for holding functions for runtime generics.
+# Uses a base interface to generate a layout at comptime.
+pub fn VTable(Interface: type) type {
+  const Layout = VTableLayout(Interface);
+
+  return struct {
+    context: opaque*,
+    table: Layout*,
+
+    # Initializes a vtable instance from any type that conforms
+    # To the VTable interface type.
+    fn init(instance: Interface*) VTable(Interface) {
+      return .{
+        .context: instance as opaque*,
+        .table: &CreateVTable(Interface, instance.type),
+      }
+    }
+  };
+}
+
+# Private function for generating VTable layouts 
+# from an input interface.
+comptime fn VTableLayout(Interface: type) type {
+  var layout = struct {};
+  var fields = std.compile.Field[Interface.methods.len];
+
+  for(Interface.methods, 0..) |method, i| {
+    fields[i] = .{
+      .name = method.name;
+      .type = std.compile.OpaqueCapture(method.type);
+    };
+  }
+
+  layout.fields = fields;
+  return layout;
+}
+
+# Private function for generating VTable layout instances 
+# from an input interface.
+comptime fn CreateVTable(InterfaceType: type, InstanceType: type) VTableLayout(InterfaceType)* {
+  if(!(InstanceType is InterfaceType)) {
+    throw error{ .msg = "Instance type does not conform to interface type" };
+  }
+
+  var table: VTableLayout(InterfaceType);
+
+  for(InterfaceType.methods) |method| {
+    const func = std.compile.getFunction(InstanceType, method.name);
+    std.compile.setField(&table, method.name, func);
+  }
+
+  return &table;
+}
