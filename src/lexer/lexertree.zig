@@ -7,6 +7,7 @@ const BUILDER: LexerTreeBuilder = blk: {
     var builder = LexerTreeBuilder{};
 
     for(@typeInfo(common.Keyword).@"enum".field_names) |name| {
+        //start from index 1 to ignore leading _
         builder.addKeyword(name[1..], @field(common.Keyword, name));
     }
 

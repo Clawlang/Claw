@@ -1,4 +1,4 @@
-/// Common definitions that the entire compiler will use.
+//! Common definitions that the entire compiler will use.
 
 /// Language keyword set
 pub const Keyword = enum {

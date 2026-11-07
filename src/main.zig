@@ -7,14 +7,16 @@ pub fn main(init: std.process.Init) !u8 {
 
     const params = comptime clap.parseParamsComptime(
         \\-h, --help                Display help and exit.
-        \\--list-targets            Lists all available compilation targets.
-        \\--list-release            Lists available release modes. (optimization targets)
         \\-o, --output <FILE>       Specify output binary path.
         \\-t, --target <str>        Specify target os and instruction set. Defaults to 'native'.
         \\-r, --release <str>       Specify target release mode. Defaults to 'Debug'.
-        \\--print-ast               Dump the abstract syntax tree to stdout.
+        \\    --list-targets        Lists all available compilation targets.
+        \\    --list-release        Lists available release modes. (optimization targets)
+        \\    --print-ast           Dump the abstract syntax tree to stdout.
+        \\    --direct              Point directly to a .claw file.
+        \\    --clawc               Enable the c compiler and link libc. 
+        \\    --clawcpp             Enable the c++ compiler and link libcpp.
         \\<FILE>                    The input .clon build file.
-        \\
     );
 
     const parser = .{
@@ -70,14 +72,31 @@ pub fn main(init: std.process.Init) !u8 {
         return 1;
     };
 
-    _ = std.Io.Dir.cwd().openFile(io, srcPath, .{}) catch |err| switch (err) {
+    var file = std.Io.Dir.cwd().openFile(io, srcPath, .{}) catch |err| switch (err) {
         std.Io.File.OpenError.FileNotFound => {
             std.debug.print("Error: provided build file does not exist.\n", .{});
             return 1;
         },
         else => return err,
     };
+    defer file.close(io);
+
+    if(res.args.direct != 0) {
+        try compileDirect(io, &file);
+    } else {
+        try compile(io, &file);
+    }
 
     std.debug.print("Compilation Complete!\n", .{});
     return 0;
+}
+
+pub fn compile(io: std.Io, file: *std.Io.File) !void {
+    _ = io;
+    _ = file;
+}
+
+pub fn compileDirect(io: std.Io, file: *std.Io.File) !void {
+    _ = io;
+    _ = file;
 }
