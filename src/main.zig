@@ -2,7 +2,6 @@ const std = @import("std");
 const clap = @import("clap");
 
 pub fn main(init: std.process.Init) !u8 {
-    const allocator = init.gpa;
     const io = init.io;
 
     const params = comptime clap.parseParamsComptime(
@@ -40,7 +39,7 @@ pub fn main(init: std.process.Init) !u8 {
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, parser, init.minimal.args, .{
         .diagnostic = &diag,
-        .allocator = allocator,
+        .allocator = init.gpa,
     }) catch |err| {
         try diag.reportToFile(io, .stderr(), err);
         return 1;
@@ -82,21 +81,18 @@ pub fn main(init: std.process.Init) !u8 {
     defer file.close(io);
 
     if(res.args.direct != 0) {
-        try compileDirect(io, &file);
+        var sources = std.ArrayList([]const u8).empty;
+        try sources.append(init.gpa, srcPath);
+        try compile(init, &sources);
     } else {
-        try compile(io, &file);
+        //unimplemented until clon parser is written.
     }
 
     std.debug.print("Compilation Complete!\n", .{});
     return 0;
 }
 
-pub fn compile(io: std.Io, file: *std.Io.File) !void {
-    _ = io;
-    _ = file;
-}
-
-pub fn compileDirect(io: std.Io, file: *std.Io.File) !void {
-    _ = io;
-    _ = file;
+pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !void {
+    _ = init;
+    _ = sources;
 }
