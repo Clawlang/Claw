@@ -7,8 +7,8 @@ release target='native' : (build target "ReleaseSafe")
 build target='native' optimize="Debug":
   zig build -Dtarget={{target}} -Doptimize={{optimize}}
 
-test params='': build
-  ./zig-out/bin/claw.exe {{params}}
+test *args='': build
+  ./zig-out/bin/claw.exe {{args}}
 
 update-std:
   git subtree pull --prefix="std/" std main --squash
