@@ -86,9 +86,8 @@ pub fn main(init: std.process.Init) !u8 {
     defer file.close(io);
 
     //start compiler process here.
-    if(res.args.direct != 0) {
+    if (res.args.direct != 0) {
         var sources = std.ArrayList([]const u8).empty;
-        defer sources.deinit(allocator);
 
         try sources.append(allocator, srcPath);
         try compile(init, &sources);
@@ -101,13 +100,15 @@ pub fn main(init: std.process.Init) !u8 {
 }
 
 pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !void {
-    for(sources.items) |path| {
+    for (sources.items) |path| {
         const allocator = init.arena.allocator();
         var file = try std.Io.Dir.cwd().openFile(init.io, path, .{});
 
         const len = try file.length(init.io);
-        const buf = try allocator.alloc(u8, len);
-        defer allocator.free(buf);
+        // use gpa since we dont want to hold the buffer in ram
+        // for all of runtime
+        const buf = try init.gpa.alloc(u8, len);
+        defer init.gpa.free(buf);
 
         _ = try file.readPositionalAll(init.io, buf, 0);
         _ = try lexer.tokenize(buf, allocator);
