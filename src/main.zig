@@ -6,6 +6,7 @@ const lexer = @import("lexer/lexer.zig");
 
 pub fn main(init: std.process.Init) !u8 {
     const io = init.io;
+    const allocator = init.arena.allocator();
 
     const params = comptime clap.parseParamsComptime(
         \\-h, --help                Display help and exit.
@@ -87,9 +88,9 @@ pub fn main(init: std.process.Init) !u8 {
     //start compiler process here.
     if(res.args.direct != 0) {
         var sources = std.ArrayList([]const u8).empty;
-        defer sources.deinit(init.gpa);
+        defer sources.deinit(allocator);
 
-        try sources.append(init.gpa, srcPath);
+        try sources.append(allocator, srcPath);
         try compile(init, &sources);
     } else {
         //unimplemented until clon parser is written.
@@ -101,14 +102,15 @@ pub fn main(init: std.process.Init) !u8 {
 
 pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !void {
     for(sources.items) |path| {
+        const allocator = init.arena.allocator();
         var file = try std.Io.Dir.cwd().openFile(init.io, path, .{});
 
         const len = try file.length(init.io);
-        const buf = try init.gpa.alloc(u8, len);
-        defer init.gpa.free(buf);
+        const buf = try allocator.alloc(u8, len);
+        defer allocator.free(buf);
 
         _ = try file.readPositionalAll(init.io, buf, 0);
-        _ = try lexer.tokenize(buf, init.gpa);
+        _ = try lexer.tokenize(buf, allocator);
 
         defer file.close(init.io);
     }
