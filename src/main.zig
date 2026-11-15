@@ -4,6 +4,8 @@ const clap = @import("clap");
 // Compiler imports
 const lexer = @import("lexer/lexer.zig");
 
+const clon = @import("clon/parser.zig");
+
 pub fn main(init: std.process.Init) !u8 {
     const io = init.io;
     const allocator = init.arena.allocator();
@@ -92,7 +94,14 @@ pub fn main(init: std.process.Init) !u8 {
         try sources.append(allocator, srcPath);
         try compile(init, &sources);
     } else {
-        //unimplemented until clon parser is written.
+        const len = try file.length(io);
+        const buf = try allocator.alloc(u8, len);
+        defer allocator.free(buf);
+
+        _ = try file.readPositionalAll(init.io, buf, 0);
+
+        //const b = try clon.parse(buf, allocator);
+        //clon.print(b);
     }
 
     std.debug.print("Compilation Complete!\n", .{});
@@ -103,6 +112,7 @@ pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !voi
     for (sources.items) |path| {
         const allocator = init.arena.allocator();
         var file = try std.Io.Dir.cwd().openFile(init.io, path, .{});
+        defer file.close(init.io);
 
         const len = try file.length(init.io);
         // use gpa since we dont want to hold the buffer in ram
@@ -112,7 +122,5 @@ pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !voi
 
         _ = try file.readPositionalAll(init.io, buf, 0);
         _ = try lexer.tokenize(buf, allocator);
-
-        defer file.close(init.io);
     }
 }
