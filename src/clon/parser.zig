@@ -175,7 +175,16 @@ pub fn print(clon: ClonValue) void {
         .array => |a| {
             std.debug.print("[\n", .{});
             for(a.items) |i| {
-                std.debug.print("   ", .{}); //indentation
+                const t = switch(i) {
+                    .string => "string",
+                    .integer => "int",
+                    .float => "float",
+                    .bool => "bool",
+                    .array => "array",
+                    .object => "object",
+                };
+                
+                std.debug.print("   ({s}) ", .{t}); //indentation
                 print(i);
             }
             std.debug.print("]\n", .{});
@@ -183,7 +192,15 @@ pub fn print(clon: ClonValue) void {
         .object => |o| {
             std.debug.print("{{\n", .{});
             for(o.items) |i| {
-                std.debug.print("   {s} = ", .{ i.key });
+                const t = switch(i.value) {
+                    .string => "string",
+                    .integer => "int",
+                    .float => "float",
+                    .bool => "bool",
+                    .array => "array",
+                    .object => "object",
+                };
+                std.debug.print("   {s}: {s} = ", .{ i.key, t });
                 print(i.value);
             }
             std.debug.print("}}\n", .{});
