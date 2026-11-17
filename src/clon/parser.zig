@@ -206,20 +206,21 @@ pub const Parser = struct {
         std.debug.print("\x1b[0m", .{}); //reset
         std.debug.print("   {s}\n", .{ self.lexer.source[line_start..line_end] });
         
-        std.debug.print("\x1b[91m", .{}); //red coloring
+        std.debug.print("\x1b[95m", .{}); //red coloring
         //print squiggles
         std.debug.print("   ", .{});
-        for(0..line_end - line_start) |_| {
+        for(1..self.current.col) |_| {
             std.debug.print("~", .{});
         }
-
         //print caret
-        std.debug.print("\n   ", .{});
-        for(1..self.current.col) |_| {
-            std.debug.print(" ", .{});
+        std.debug.print("\x1b[1m", .{}); //bold pink coloring
+        std.debug.print("^", .{});
+        //print remaining sqiggles
+        std.debug.print("\x1b[22m", .{}); //no bold
+        for(self.current.col..line_end - line_start) |_| {
+            std.debug.print("~", .{});
         }
-        std.debug.print("\x1b[1m\x1b[95m", .{}); //bold pink coloring
-        std.debug.print("^\n", .{});
+        std.debug.print("\x1b[0m\n", .{}); //reset and newline
 
         //exit
         std.process.exit(1);
@@ -240,7 +241,7 @@ pub fn getTokenLabel(tag: lex.Token.Tag) []const u8 {
         .bracket_r => "]",
         .dot => ".",
         .comma => ",",
-        .equals => "Assignment",
+        .equals => "=",
         .literal_int => "Numeric Literal",
         .literal_string => "String Literal",
         .eof => "EOF",
@@ -254,7 +255,7 @@ pub fn getErrMsg(err: Error) []const u8 {
         Error.IntParsingError => "Error Parsing Integer Literal",
         Error.FloatParsingError => "Error Parsing Float Literal",
 
-        Error.OutOfMemory => "Out Of Memory :(",
+        Error.OutOfMemory => "Out Of Memory",
     };
 }
 
