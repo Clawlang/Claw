@@ -10,5 +10,7 @@ build target='native' optimize="Debug":
 test *args='': build
   ./zig-out/bin/claw.exe {{args}}
 
+# you might need to use git reset
+# before running this task
 update-std:
   git subtree pull --prefix="std/" std main --squash
