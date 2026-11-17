@@ -59,7 +59,7 @@ pub const Parser = struct {
     /// and outputs an error message to the terminal.
     fn expect(self: *Parser, tag: lex.Token.Tag) Error!void {
         if(self.current.tag != tag) {
-            self.throw(Error.UnexpectedToken, self.allocator.print("Expected Token: \"{s}\", Found \"{s}\" Instead.", .{getTokenLabel(tag), getTokenLabel(self.current.tag)}) catch {
+            self.throw(Error.UnexpectedToken, self.allocator.print("Expected Token: '{s}', Found '{s}' Instead.", .{getTokenLabel(tag), getTokenLabel(self.current.tag)}) catch {
                 self.throw(Error.OutOfMemory, "");
                 return Error.OutOfMemory;
             });
@@ -85,8 +85,7 @@ pub const Parser = struct {
         errdefer obj.deinit(self.allocator);
 
         while(self.current.tag != .brace_r and self.current.tag != .eof) {
-            if(self.current.tag == .dot) self.advance(); //skip . for starting fields.
-
+            try self.expect(.dot); //expect leading dot on fields
             const identity = try self.getExpect(.identifier);
 
             try self.expect(.equals);
@@ -94,8 +93,10 @@ pub const Parser = struct {
             const val = try self.parseValue();
             try obj.append(self.allocator, ClonField{ .key = identity, .value = val });
 
-            if(self.current.tag == .comma) {
-                self.advance();
+            if(self.current.tag != .comma) {
+                break;
+            } else {
+                try self.expect(.comma);
             }
         }
 
@@ -112,8 +113,10 @@ pub const Parser = struct {
             const val = try self.parseValue();
             try arr.append(self.allocator, val);
 
-            if(self.current.tag == .comma) {
-                self.advance();
+            if(self.current.tag != .comma) {
+                break;
+            } else {
+                try self.expect(.comma);
             }
         }
 
@@ -139,8 +142,6 @@ pub const Parser = struct {
                     const floatstr = std.mem.concat(self.allocator, u8, &strlist) catch {self.throw(Error.OutOfMemory, ""); return Error.OutOfMemory;};
                     defer self.allocator.free(floatstr);
 
-                    defer self.advance();
-
                     return ClonValue{ .float = std.fmt.parseFloat(f32, floatstr) catch {self.throw(Error.FloatParsingError,  floatstr); return Error.FloatParsingError;} };
                 } else { //int
                     return ClonValue{ .integer = std.fmt.parseInt(i32, start, 0) catch {self.throw(Error.IntParsingError, start); return Error.IntParsingError;} };
@@ -161,7 +162,10 @@ pub const Parser = struct {
                 } else if(std.mem.eql(u8, lexeme, "false")) {
                     return ClonValue{ .bool = false };
                 } else {
-                    self.throw(Error.UnexpectedToken, "Expected Boolean Literal");
+                    self.throw(Error.UnexpectedToken, self.allocator.print("Expected: 'Assignment', Found: '{s}' Instead.", .{getTokenLabel(self.current.tag)}) catch {
+                        self.throw(Error.OutOfMemory, "");
+                        return Error.UnexpectedToken; 
+                    });
                     return Error.UnexpectedToken;
                 }
             },
@@ -179,19 +183,22 @@ pub const Parser = struct {
     pub fn throw(self: *Parser, err: Error, detail: []const u8) void {
         const msg = getErrMsg(err);
 
-        const line_start: usize = blk: {
-            const loc = self.current.lexeme.ptr - self.lexer.source.ptr;
-            var i = loc;
-            while (i > 0) {
-                i -= 1;
-                if (self.lexer.source[i] == '\n') {
-                    break :blk i + 1;
-                }
-            }
-            break :blk 0;
-        };
+        var line_start: usize = 0;
+        const loc = self.current.lexeme.ptr - self.lexer.source.ptr;
 
-        const line_end: usize = blk: {
+        var idx = loc;
+        var s = loc;
+        while (idx > 0) {
+            idx -= 1;
+            if(!isWhitespace(self.lexer.source[idx])) s = idx;
+
+            if (self.lexer.source[idx] == '\n') {
+                line_start = s;
+                break;
+            }
+        }
+
+        const line_end = blk: {
             for(self.lexer.source[line_start..], line_start..) |ch, i| {
                 if(ch == '\n') break :blk i;
             }
@@ -206,21 +213,35 @@ pub const Parser = struct {
         std.debug.print("\x1b[0m", .{}); //reset
         std.debug.print("   {s}\n", .{ self.lexer.source[line_start..line_end] });
         
-        std.debug.print("\x1b[95m", .{}); //red coloring
+        const line_start_ptr = self.lexer.source.ptr + line_start;
+        const token_offset = self.current.lexeme.ptr - line_start_ptr;
+        const token_len = self.current.lexeme.len;
+
         //print squiggles
+        std.debug.print("\x1b[95m", .{}); //pink coloring
         std.debug.print("   ", .{});
-        for(1..self.current.col) |_| {
+        for(0..token_offset) |_| {
             std.debug.print("~", .{});
         }
+
         //print caret
         std.debug.print("\x1b[1m", .{}); //bold pink coloring
-        std.debug.print("^", .{});
+        for(0..token_len) |_| {
+            std.debug.print("^", .{});
+        }
+
         //print remaining sqiggles
         std.debug.print("\x1b[22m", .{}); //no bold
-        for(self.current.col..line_end - line_start) |_| {
-            std.debug.print("~", .{});
+        const printed_so_far = token_offset + token_len;
+        const remaining_chars = (line_end - line_start);
+        if (remaining_chars > printed_so_far) {
+            for(1..(remaining_chars - printed_so_far)) |_| {
+                std.debug.print("~", .{});
+            }
         }
-        std.debug.print("\x1b[0m\n", .{}); //reset and newline
+
+        //reset and newline
+        std.debug.print("\x1b[0m\n", .{});
 
         //exit
         std.process.exit(1);
@@ -299,4 +320,11 @@ pub fn print(clon: ClonValue) void {
             std.debug.print("}}\n", .{});
         }
     }
+}
+
+inline fn isWhitespace(char: u8) bool {
+    return switch(char) {
+        ' ', '\t', '\r', '\n' => true,
+        else => false,
+    };
 }
