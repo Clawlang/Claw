@@ -170,7 +170,7 @@ pub const Parser = struct {
                 }
             },
             else => {
-                self.throw(Error.UnexpectedToken, self.allocator.print("Found \"{s}\"", .{getTokenLabel(self.current.tag)}) catch {
+                self.throw(Error.UnexpectedToken, self.allocator.print("Expected: 'Assignment', Found '{s}' Instead.", .{getTokenLabel(self.current.tag)}) catch {
                     self.throw(Error.OutOfMemory, "");
                     return Error.OutOfMemory;
                 });
