@@ -2,7 +2,7 @@ const std = @import("std");
 const clap = @import("clap");
 
 // Compiler imports
-const lexer = @import("lexer/lexer.zig");
+const lexer = @import("compile/lexer.zig");
 
 const clon = @import("clon/parser.zig");
 
@@ -74,13 +74,13 @@ pub fn main(init: std.process.Init) !u8 {
     }
 
     const srcPath = res.positionals[0] orelse {
-        std.debug.print("Error: no target file provided.\n", .{});
+        throw("No target file provided.");
         return 1;
     };
 
     var file = std.Io.Dir.cwd().openFile(io, srcPath, .{}) catch |err| switch (err) {
         std.Io.File.OpenError.FileNotFound => {
-            std.debug.print("Error: provided target file does not exist.\n", .{});
+            throw("Provided target file does not exist.");
             return 1;
         },
         else => return err,
@@ -100,8 +100,8 @@ pub fn main(init: std.process.Init) !u8 {
 
         _ = try file.readPositionalAll(init.io, buf, 0);
 
-        //const b = try clon.parse(buf, allocator);
-        //clon.print(b);
+        const b = try clon.parse(buf, allocator);
+        clon.print(b);
     }
 
     std.debug.print("Compilation Complete!\n", .{});
@@ -121,6 +121,16 @@ pub fn compile(init: std.process.Init, sources: *std.ArrayList([]const u8)) !voi
         defer init.gpa.free(buf);
 
         _ = try file.readPositionalAll(init.io, buf, 0);
-        _ = try lexer.tokenize(buf, allocator);
+        _ = allocator;
     }
+}
+
+pub fn throw(err: []const u8) void {
+    std.debug.print("\x1b[1m\x1b[91m", .{}); //bold red coloring
+    std.debug.print("Error: ", .{});
+
+    std.debug.print("\x1b[0m", .{}); //reset
+    std.debug.print("{s}\n", .{err});
+
+    std.process.exit(1);
 }

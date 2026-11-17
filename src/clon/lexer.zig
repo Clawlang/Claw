@@ -2,26 +2,26 @@ const std = @import("std");
 
 const parser = @import("parser.zig");
 
-pub const TokenTag = enum {
-    eof,
-    identifier,
-    literal_string,
-    literal_int,
-
-    brace_l,            // {
-    brace_r,            // }
-    bracket_l,          // [
-    bracket_r,          // ]
-    comma,              // ,
-    dot,                // .
-    equals,             // =
-};
-
 pub const Token = struct {
-    tag: TokenTag,
+    tag: Tag,
     lexeme: []u8,
     line: usize,
     col: usize,
+
+    pub const Tag = enum {
+        eof,
+        identifier,
+        literal_string,
+        literal_int,
+
+        brace_l,            // {
+        brace_r,            // }
+        bracket_l,          // [
+        bracket_r,          // ]
+        comma,              // ,
+        dot,                // .
+        equals,             // =
+    };
 };
 
 pub const Lexer = struct {
@@ -67,7 +67,6 @@ pub const Lexer = struct {
                     }
                     self.advance();
                 }
-                if(self.index >= self.source.len) return parser.Error.EOF;
                 const lexeme = self.source[lit_start..self.index];
                 self.advance(); //skip closing quote
 
@@ -92,9 +91,7 @@ pub const Lexer = struct {
                 return Token{ .tag = .identifier, .lexeme = lexeme, .line = self.line, .col = start_col };
             },
 
-            else => {
-                return parser.Error.UnexpectedCharacter;
-            }
+            else => return parser.Error.UnexpectedToken,
         }
     }
 

@@ -1,14 +1,15 @@
 const std = @import("std");
-const common = @import("../common.zig");
 
 const lexer = @import("lexer.zig");
 
 const BUILDER: LexerTreeBuilder = blk: {
     var builder = LexerTreeBuilder{};
 
-    for(@typeInfo(common.Keyword).@"enum".field_names) |name| {
-        //start from index 1 to ignore leading _
-        builder.addKeyword(name[1..], @field(common.Keyword, name));
+    for(@typeInfo(lexer.Token.Tag).@"enum".field_names) |name| {
+        if(!std.mem.startsWith(u8, name, "kw_")) break;
+        
+        //start from index 3 to ignore leading kw_
+        builder.addKeyword(name[3..], @field(lexer.Token.Tag, name));
     }
 
     break :blk builder;
@@ -19,7 +20,7 @@ pub const tree = LexerTree{ .nodes = BUILDER.nodes[0..BUILDER.node_count] };
 pub const LexerTree = struct {
     nodes: []const LexerNode,
 
-    pub fn getKeyword(self: LexerTree, key: []const u8) lexer.Error!common.Keyword {
+    pub fn getKeyword(self: LexerTree, key: []const u8) lexer.Error!lexer.Token.Tag {
         var idx: u32 = 0;
 
         for (key) |char| {
@@ -45,7 +46,7 @@ const LexerTreeBuilder = struct {
         return &self.nodes[0];
     }
 
-    pub fn addKeyword(comptime self: *LexerTreeBuilder, comptime key: []const u8, comptime keyword: common.Keyword) void {
+    pub fn addKeyword(comptime self: *LexerTreeBuilder, comptime key: []const u8, comptime keyword: lexer.Token.Tag) void {
         var node = self.getRoot();
 
         for (key) |char| {
@@ -68,6 +69,6 @@ const LexerTreeBuilder = struct {
 
 const NO_CHILD: u16 = std.math.maxInt(u16);
 const LexerNode = struct {
-    keyword: ?common.Keyword = null,
+    keyword: ?lexer.Token.Tag = null,
     children: [256]u16 = @splat(NO_CHILD),
 };

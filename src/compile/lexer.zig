@@ -1,44 +1,20 @@
-//! Common definitions that the entire compiler will use.
+const std = @import("std");
 
-/// Language keyword set
-pub const Keyword = enum { //dont forget to update Token.Tag type as well.
-    //definition
-    _fn,
-    _type,
-    _enum,
-    _struct,
-    _alias,
-    _opaque,
-    _var,
-    _const,
-    _event,
-    //control
-    _do,
-    _on,
-    _if,
-    _switch,
-    _while,
-    _for,
-    _break,
-    _continue,
-    _return,
-    _defer,
-    _errdefer,
-    //error handling
-    _try,
-    _catch,
-    _throw,
-    //type
-    _is,
-    _as,
-    //misc
-    _pub,
-    _import,
+const tree = @import("lexertree.zig");
+
+pub const Error = error{
+    UnknownKeyword,
+    OutOfMemory,
 };
 
-/// Stores a token tag and the location in the character
-/// list that it is defined.
+/// Stores a token tag and the lexeme it represents.
 pub const Token = struct {
+    lexeme: []u8,
+    tag: Tag,
+    line: usize,
+    col: usize,
+
+    /// Tags that represent token type
     pub const Tag = enum {
         //control
         eof,
@@ -119,12 +95,38 @@ pub const Token = struct {
         shift_left,         // <<
         shift_right,        // >>
     };
+};
 
-    pub const Range = struct {
-        start: usize,
-        end: usize,
-    };
+pub const Lexer = struct {
+    source: []u8,
+    index: usize,
+    line: usize,
+    col: usize,
 
-    tag: Tag,
-    loc: Range,
+    pub fn init(source: []u8) Lexer {
+        return Lexer{ .source = source, .index = 0, .line = 1, .col = 1, };
+    }
+
+    fn advance(self: *Lexer) void {
+        self.index += 1;
+        self.col += 1;
+    }
+
+    /// Skip whitespace and comments.
+    fn skip(self: *Lexer) void {
+        while (self.index < self.source.len) {
+            const c = self.source[self.index];
+            switch (c) {
+                ' ', '\t', '\r' => {
+                    self.advance();
+                },
+                '\n' => {
+                    self.line += 1;
+                    self.col = 1;
+                    self.index += 1;
+                },
+                else => break,
+            }
+        }
+    }
 };
