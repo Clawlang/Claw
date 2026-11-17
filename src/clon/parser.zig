@@ -128,8 +128,11 @@ pub const Parser = struct {
         switch (self.current.tag) {
             .literal_string => { //string
                 const lexeme = self.current.lexeme;
+
+                if(lexeme[lexeme.len - 1] != '"') self.throw(Error.UnexpectedToken, "String Literal Does Not End.");
+
                 self.advance();
-                return ClonValue{ .string = lexeme };
+                return ClonValue{ .string = lexeme[1..lexeme.len - 1] };
             },
             .literal_int => { //number
                 const start = self.current.lexeme;

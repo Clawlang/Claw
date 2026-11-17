@@ -57,8 +57,8 @@ pub const Lexer = struct {
             '=' => { self.advance(); return Token{ .tag = .equals, .lexeme = self.source[start..self.index], .line = self.line, .col = start_col}; },
 
             '"' => { //string literal
-                self.advance(); //skip opening quote
                 const lit_start = self.index;
+                self.advance();
 
                 while(self.index < self.source.len and self.source[self.index] != '"') {
                     if(self.source[self.index] == '\n') {
@@ -67,8 +67,15 @@ pub const Lexer = struct {
                     }
                     self.advance();
                 }
-                const lexeme = self.source[lit_start..self.index];
-                self.advance(); //skip closing quote
+                var lexeme: []u8 = undefined;
+
+                if(self.index == self.source.len) {
+                    lexeme = self.source[lit_start..self.index];
+                } else {
+                    lexeme = self.source[lit_start..self.index + 1]; //include closing quote
+                }
+
+                defer self.advance();
 
                 return Token{ .tag = .literal_string, .lexeme = lexeme, .line = self.line, .col = start_col };
             },
