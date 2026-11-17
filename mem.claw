@@ -3,13 +3,13 @@
 # Interface for allocating memory to the heap
 type Allocator = struct {
   # Allocates a slice of type `T` with len `count`.
-  # @Throws `std.err.OutOfMemory` error.
-  fn |self| alloc(T: type, count: usize) T[]*;
+  # @throws `std.err.outOfMemory` error.
+  fn |self| alloc(T: type, count: usize) T[];
   # Frees a slice of heap allocated data.
-  fn |self| free(data: any[]*) void;
+  fn |self| free(data: any[]) void; 
 
   # Allocates an instance of the `T` type.
-  # @Throws `std.err.OutOfMemory` error.
+  # @throws `std.err.outOfMemory` error.
   fn |self| create(T: type) T*;
   # Frees an instance of any type.
   fn |self| destroy(data: any*) void;

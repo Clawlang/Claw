@@ -2,6 +2,8 @@
 # most functions that ask for strings should use u8[], 
 # since String conforms to it.
 
+import build;
+
 # alias type of u8[], stores an allocator to make
 # changes seamlessly
 type String = alias u8[] {
@@ -10,8 +12,8 @@ type String = alias u8[] {
   # Initializes a string instance.
   # Must be passed a starting value.
   # Can optionally be passed an allocator type.
-  # @Throws `std.error.OutOfMemory` error.
-  fn init(value: u8[], allocator = std.allocators.DebugAllocator) String {
+  # @throws `std.error.outOfMemory` error.
+  fn init(value: u8[], allocator: alias std.mem.Allocator = build.target.DefaultAllocator) String {
     var ret = String{ .allocator = allocator, .len = value.len };
     var copy = try allocator.alloc(u8, value.len);
     errdefer allocator.free(copy);
@@ -36,9 +38,9 @@ type String = alias u8[] {
     return true;
   }
 
-  # Concatinates two strings together.
-  # @Throws `std.error.OutOfMemory` error.
-  fn |self| concat(str: u8[]) void {
+  # Appends `str` to the end of `self`.
+  # @throws `std.error.outOfMemory` error.
+  fn |self| append(str: u8[]) void {
     var ret = try self.allocator.alloc(u8, self.len + str.len);
     errdefer allocator.free(ret);
 
@@ -51,7 +53,7 @@ type String = alias u8[] {
 
   # Duplicates a string into a new struct with
   # a seperate backing character struct.
-  # @Throws `std.error.OutOfMemory` error.
+  # @throws `std.error.outOfMemory` error.
   fn |self| dupe() String {
     return try String.init(self, self.allocator);
   }
@@ -60,7 +62,7 @@ type String = alias u8[] {
   # and `end` indices. Allocates the new String
   # to the heap.
   # character at index `end` is not included in the returned string.
-  # @Throws `std.error.OutOfMemory` error.
+  # @throws `std.error.outOfMemory` error.
   fn |self| substring(start: usize, end: usize) String {
     return try String.init(self[start..end - 1], self.allocator);
   }

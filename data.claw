@@ -1,0 +1,127 @@
+# std module for handling data.
+
+import build;
+
+# Generic Arraylist type.
+# Alias of `T[]` but is dynamically resizable.
+pub comptime fn Arraylist(T: type) type {
+  return alias T[] {
+    allocator: alias std.mem.Allocator,
+    capacity: usize,
+
+    # Initializes a new Arraylist.
+    # Optionally takes an initial capacity and/or an allocator.
+    # @throws `std.error.outOfMemory` error.
+    pub fn init(capacity: usize = 4, allocator: alias = build.target.DefaultAllocator) Arraylist(T) {
+      var ret: Arraylist(T) = .{
+        .allocator = allocator,
+        .len = 0,
+      };
+
+      const data = try allocator.alloc(T, capacity);
+
+      ret.ptr = data.ptr;
+      ret.capacity = data.len;
+
+      return ret;
+    }
+
+    # Frees data held by the list.
+    pub fn |self| deinit() void {
+      self.allocator.free(self.ptr[0..self.capacity]);
+    }
+
+    # Grows the internal capacity to handle `by` more items.
+    # @throws `std.error.outOfMemory` error.
+    pub fn |self| grow(by: usize) void {
+      var new = try self.allocator.alloc(T, self.capacity + by);
+
+      new[0..self.len] = self[0..self.len];
+      self.allocator.free(self.ptr[0..self.capacity]);
+
+      self.ptr = new.ptr;
+      self.capacity = new.len;
+    }
+
+    # Shrinks the internal capacity to handle `by` fewer items.
+    # @throws `Insufficient Capacity`, `std.error.outOfMemory` errors.
+    pub fn |self| shrink(by: usize) void {
+      if(by > self.capacity or self.capacity - by < self.len) throw error{ .msg = "Insufficient Capacity" };
+
+      var new = try self.allocator.alloc(T, self.capacity - by);
+
+      new[0..self.len] = self[0..self.len];
+      self.allocator.free(self.ptr[0..self.capacity]);
+
+      self.ptr = new.ptr;
+      self.capacity = new.len;
+    }
+
+    # Appends `item` to the end of the list.
+    # Doubles capacity if it needs more space.
+    # @throws `std.error.outOfMemory` error.
+    pub fn |self| append(item: T) void {
+      if(self.len >= self.capacity) {
+        try self.grow(std.math.max(self.capacity, 1));
+      }
+
+      self[self.len] = item;
+      self.len += 1;
+    }
+
+    # Removes the item at `index` and returns it.
+    # @throws `std.error.indexOutOfBounds` error.
+    pub fn |self| remove(index: usize) T {
+      if(index >= self.len) throw std.error.indexOutOfBounds;
+
+      const ret = self[index];
+      for(self[index + 1..self.len], ..) |cur, i| { //shift items
+        self[index - 1] = cur;
+      }
+      self.len -= 1;
+
+      return ret;
+    }
+
+    # Checks if the list contains `item`.
+    # Handles `std.interface.Comparable` as well as comparable primitives.
+    pub fn |self| contains(item: T) bool {
+      comptime if(T is std.interface.Comparable) {
+        for(self[0..self.len]) |cur| {
+          if(cur.equals(item)) return true;
+        }
+      } else {
+        for(self[0..self.len]) |cur| {
+          if(cur == item) return true;
+        }
+      }
+
+      return false;
+    }
+
+    # Finds `item` in the list.
+    # Handles `std.interface.Comparable` as well as comparable primitives.
+    # @returns index of item or null if the list does not contain it.
+    pub fn |self| find(item: T) usize? {
+      comptime if(T is std.interface.Comparable) {
+        for(self[0..self.len], ..) |cur, i| {
+          if(cur.equals(item)) return i;
+        }
+      } else {
+        for(self[0..self.len], ..) |cur, i| {
+          if(cur == item) return i;
+        }
+      }
+
+      return null;
+    }
+
+    # Returns the last item in the list
+    # Shorthand for list[list.len - 1]
+    # @throws `Empty List` if list is empty
+    pub fn |self| last() T {
+      if(self.len == 0) throw error{ .msg = "Empty List" };
+      return self[self.len - 1];
+    }
+  };
+}
