@@ -13,7 +13,7 @@ pub comptime fn Arraylist(T: type) type {
     # Optionally takes an initial capacity and/or an allocator.
     # @throws `std.error.outOfMemory` error.
     pub fn init(capacity: usize = 4, allocator: alias = build.target.DefaultAllocator) Arraylist(T) {
-      var ret: Arraylist(T) = .{
+      var ret: Arraylist(T) = {
         .allocator = allocator,
         .len = 0,
       };

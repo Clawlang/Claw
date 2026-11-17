@@ -1,0 +1,6 @@
+# std module that defines common errors
+
+# Out of memory.
+pub const outOfMemory = error{ .msg = "Out Of Memory" };
+# Index out of bounds.
+pub const indexOutOfBounds = error{ .msg = "Index Out Of Bounds" };
