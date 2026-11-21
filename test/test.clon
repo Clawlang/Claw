@@ -4,7 +4,7 @@
   .requires = [],
 
   .num = 1.0,
-  .boolean_long_name = false,
+  .boolean_long_name = falsee,
 
   .sources = [
     "src/**",

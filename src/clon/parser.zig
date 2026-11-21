@@ -1,10 +1,11 @@
 const std = @import("std");
 const lex = @import("lexer.zig");
+const err = @import("../err.zig");
 
 pub const ClonObject = std.ArrayList(ClonField);
 pub const ClonArray = std.ArrayList(ClonValue);
 
-pub const Error = error {
+pub const Error = error{
     //parser errors
     UnexpectedToken,
 
@@ -49,8 +50,8 @@ pub const Parser = struct {
 
     fn advance(self: *Parser) void {
         self.current = self.peek;
-        self.peek = self.lexer.next() catch |err| {
-            self.throw(err, "");
+        self.peek = self.lexer.next() catch |e| {
+            self.throw(e, "");
             return;
         };
     }
@@ -58,8 +59,8 @@ pub const Parser = struct {
     /// Expect a token, if expectation is not met, terminates
     /// and outputs an error message to the terminal.
     fn expect(self: *Parser, tag: lex.Token.Tag) Error!void {
-        if(self.current.tag != tag) {
-            self.throw(Error.UnexpectedToken, self.allocator.print("Expected Token: '{s}', Found '{s}' Instead.", .{getTokenLabel(tag), getTokenLabel(self.current.tag)}) catch {
+        if (self.current.tag != tag) {
+            self.throw(Error.UnexpectedToken, self.allocator.print("Expected Token: '{s}', Found '{s}' Instead.", .{ getTokenLabel(tag), getTokenLabel(self.current.tag) }) catch {
                 self.throw(Error.OutOfMemory, "");
                 return Error.OutOfMemory;
             });
@@ -70,7 +71,7 @@ pub const Parser = struct {
 
     /// Expect a token, if expectation is not met, terminates
     /// and outputs an error message to the terminal.
-    /// 
+    ///
     /// Returns the lexeme of the current tag
     fn getExpect(self: *Parser, tag: lex.Token.Tag) Error![]const u8 {
         const lexeme = self.current.lexeme;
@@ -84,7 +85,7 @@ pub const Parser = struct {
         var obj = ClonObject.empty;
         errdefer obj.deinit(self.allocator);
 
-        while(self.current.tag != .brace_r and self.current.tag != .eof) {
+        while (self.current.tag != .brace_r and self.current.tag != .eof) {
             try self.expect(.dot); //expect leading dot on fields
             const identity = try self.getExpect(.identifier);
 
@@ -93,7 +94,7 @@ pub const Parser = struct {
             const val = try self.parseValue();
             try obj.append(self.allocator, ClonField{ .key = identity, .value = val });
 
-            if(self.current.tag != .comma) {
+            if (self.current.tag != .comma) {
                 break;
             } else {
                 try self.expect(.comma);
@@ -109,11 +110,11 @@ pub const Parser = struct {
         var arr = ClonArray.empty;
         errdefer arr.deinit(self.allocator);
 
-        while(self.current.tag != .bracket_r and self.current.tag != .eof) {
+        while (self.current.tag != .bracket_r and self.current.tag != .eof) {
             const val = try self.parseValue();
             try arr.append(self.allocator, val);
 
-            if(self.current.tag != .comma) {
+            if (self.current.tag != .comma) {
                 break;
             } else {
                 try self.expect(.comma);
@@ -129,25 +130,34 @@ pub const Parser = struct {
             .literal_string => { //string
                 const lexeme = self.current.lexeme;
 
-                if(lexeme[lexeme.len - 1] != '"') self.throw(Error.UnexpectedToken, "String Literal Does Not End.");
+                if (lexeme[lexeme.len - 1] != '"') self.throw(Error.UnexpectedToken, "String Literal Does Not End.");
 
                 self.advance();
-                return ClonValue{ .string = lexeme[1..lexeme.len - 1] };
+                return ClonValue{ .string = lexeme[1 .. lexeme.len - 1] };
             },
             .literal_int => { //number
                 const start = self.current.lexeme;
                 self.advance();
-                if(self.current.tag == .dot) { //float
+                if (self.current.tag == .dot) { //float
                     self.advance();
                     const end = try self.getExpect(.literal_int);
 
                     const strlist = [_][]const u8{ start, ".", end };
-                    const floatstr = std.mem.concat(self.allocator, u8, &strlist) catch {self.throw(Error.OutOfMemory, ""); return Error.OutOfMemory;};
+                    const floatstr = std.mem.concat(self.allocator, u8, &strlist) catch {
+                        self.throw(Error.OutOfMemory, "");
+                        return Error.OutOfMemory;
+                    };
                     defer self.allocator.free(floatstr);
 
-                    return ClonValue{ .float = std.fmt.parseFloat(f32, floatstr) catch {self.throw(Error.FloatParsingError,  floatstr); return Error.FloatParsingError;} };
+                    return ClonValue{ .float = std.fmt.parseFloat(f32, floatstr) catch {
+                        self.throw(Error.FloatParsingError, floatstr);
+                        return Error.FloatParsingError;
+                    } };
                 } else { //int
-                    return ClonValue{ .integer = std.fmt.parseInt(i32, start, 0) catch {self.throw(Error.IntParsingError, start); return Error.IntParsingError;} };
+                    return ClonValue{ .integer = std.fmt.parseInt(i32, start, 0) catch {
+                        self.throw(Error.IntParsingError, start);
+                        return Error.IntParsingError;
+                    } };
                 }
             },
             .brace_l => { //object
@@ -159,15 +169,15 @@ pub const Parser = struct {
             .identifier => { //bool (hopefully)
                 const lexeme = self.current.lexeme;
                 defer self.advance();
-                
-                if(std.mem.eql(u8, lexeme, "true")) {
+
+                if (std.mem.eql(u8, lexeme, "true")) {
                     return ClonValue{ .bool = true };
-                } else if(std.mem.eql(u8, lexeme, "false")) {
+                } else if (std.mem.eql(u8, lexeme, "false")) {
                     return ClonValue{ .bool = false };
                 } else {
                     self.throw(Error.UnexpectedToken, self.allocator.print("Expected: 'Assignment', Found: '{s}' Instead.", .{getTokenLabel(self.current.tag)}) catch {
                         self.throw(Error.OutOfMemory, "");
-                        return Error.UnexpectedToken; 
+                        return Error.UnexpectedToken;
                     });
                     return Error.UnexpectedToken;
                 }
@@ -178,76 +188,20 @@ pub const Parser = struct {
                     return Error.OutOfMemory;
                 });
                 return Error.UnexpectedToken;
-            }
+            },
         }
     }
 
     /// Throws the given error and terminates the program.
-    pub fn throw(self: *Parser, err: Error, detail: []const u8) void {
-        const msg = getErrMsg(err);
-
-        var line_start: usize = 0;
-        const loc = self.current.lexeme.ptr - self.lexer.source.ptr;
-
-        var idx = loc;
-        var s = loc;
-        while (idx > 0) {
-            idx -= 1;
-            if(!isWhitespace(self.lexer.source[idx])) s = idx;
-
-            if (self.lexer.source[idx] == '\n') {
-                line_start = s;
-                break;
-            }
-        }
-
-        const line_end = blk: {
-            for(self.lexer.source[line_start..], line_start..) |ch, i| {
-                if(ch == '\n') break :blk i;
-            }
-            break :blk self.lexer.source.len;
-        };
-
-        std.debug.print("\x1b[1m\x1b[91m", .{}); //bold red coloring
-        std.debug.print("Error on line {d} -> {s}:\n", .{ self.current.line, msg });
-
-        std.debug.print("{s}\n", .{ detail });
-
-        std.debug.print("\x1b[0m", .{}); //reset
-        std.debug.print("   {s}\n", .{ self.lexer.source[line_start..line_end] });
-        
-        const line_start_ptr = self.lexer.source.ptr + line_start;
-        const token_offset = self.current.lexeme.ptr - line_start_ptr;
-        const token_len = self.current.lexeme.len;
-
-        //print squiggles
-        std.debug.print("\x1b[95m", .{}); //pink coloring
-        std.debug.print("   ", .{});
-        for(0..token_offset) |_| {
-            std.debug.print("~", .{});
-        }
-
-        //print caret
-        std.debug.print("\x1b[1m", .{}); //bold pink coloring
-        for(0..token_len) |_| {
-            std.debug.print("^", .{});
-        }
-
-        //print remaining sqiggles
-        std.debug.print("\x1b[22m", .{}); //no bold
-        const printed_so_far = token_offset + token_len;
-        const remaining_chars = (line_end - line_start);
-        if (remaining_chars > printed_so_far) {
-            for(1..(remaining_chars - printed_so_far)) |_| {
-                std.debug.print("~", .{});
-            }
-        }
-
-        //reset and newline
-        std.debug.print("\x1b[0m\n", .{});
-
-        //exit
-        std.process.exit(1);
+    pub fn throw(self: *Parser, e: Error, detail: []const u8) void {
+        err.throw(.{
+            .msg = getErrMsg(e),
+            .detail = detail,
+            .source = self.lexer.source,
+            .loc = self.current.lexeme.ptr - self.lexer.source.ptr,
+            .line = self.current.line,
+            .lexeme = self.current.lexeme,
+        });
     }
 };
 
@@ -272,8 +226,8 @@ pub fn getTokenLabel(tag: lex.Token.Tag) []const u8 {
     };
 }
 
-pub fn getErrMsg(err: Error) []const u8 {
-    return switch (err) {
+pub fn getErrMsg(e: Error) []const u8 {
+    return switch (e) {
         Error.UnexpectedToken => "Unexpected Token",
 
         Error.IntParsingError => "Error Parsing Integer Literal",
@@ -284,15 +238,15 @@ pub fn getErrMsg(err: Error) []const u8 {
 }
 
 pub fn print(clon: ClonValue) void {
-    switch(clon) {
-        .string => std.debug.print("{s}\n", .{ clon.string }),
-        .integer => std.debug.print("{d}\n", .{ clon.integer }),
-        .float => std.debug.print("{d}\n", .{ clon.float }),
-        .bool => std.debug.print("{}\n", .{ clon.bool }),
+    switch (clon) {
+        .string => std.debug.print("{s}\n", .{clon.string}),
+        .integer => std.debug.print("{d}\n", .{clon.integer}),
+        .float => std.debug.print("{d}\n", .{clon.float}),
+        .bool => std.debug.print("{}\n", .{clon.bool}),
         .array => |a| {
             std.debug.print("[\n", .{});
-            for(a.items) |i| {
-                const t = switch(i) {
+            for (a.items) |i| {
+                const t = switch (i) {
                     .string => "string",
                     .integer => "int",
                     .float => "float",
@@ -300,7 +254,7 @@ pub fn print(clon: ClonValue) void {
                     .array => "array",
                     .object => "object",
                 };
-                
+
                 std.debug.print("   ({s}) ", .{t}); //indentation
                 print(i);
             }
@@ -308,8 +262,8 @@ pub fn print(clon: ClonValue) void {
         },
         .object => |o| {
             std.debug.print("{{\n", .{});
-            for(o.items) |i| {
-                const t = switch(i.value) {
+            for (o.items) |i| {
+                const t = switch (i.value) {
                     .string => "string",
                     .integer => "int",
                     .float => "float",
@@ -321,13 +275,6 @@ pub fn print(clon: ClonValue) void {
                 print(i.value);
             }
             std.debug.print("}}\n", .{});
-        }
+        },
     }
-}
-
-inline fn isWhitespace(char: u8) bool {
-    return switch(char) {
-        ' ', '\t', '\r', '\n' => true,
-        else => false,
-    };
 }
